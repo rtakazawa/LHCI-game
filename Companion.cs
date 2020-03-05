@@ -139,10 +139,10 @@ public class Companion : MonoBehaviour
         // Bring back game object
         while (_invisible)
         {
-            _invisible = false;
+            
             yield return new WaitForSeconds(1.0f);
             transform.position = new Vector3(_player.transform.position.x, _player.transform.position.y, 0);
-            
+            _invisible = false;
         }
     }
 
