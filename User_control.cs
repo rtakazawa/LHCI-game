@@ -35,10 +35,12 @@ public class User_control : MonoBehaviour
 
         float m_h = CrossPlatformInputManager.GetAxis("Horizontal");
         bool m_ranged = Input.GetKeyDown(KeyCode.Mouse0);
-        bool mount = Input.GetKeyDown(KeyCode.E);
+        bool mount = Input.GetKeyDown(KeyCode.F);
+        bool interact = Input.GetKeyDown(KeyCode.E);
 
-        
+
         // Pass all parameters to the character control script.
+        m_Character.Interact(interact);
         m_Character.Move(h, crouch, m_Jump);
         m_Character.Attack(attack, aim, noAim);
         m_Character.Mount(mount, m_h, m_ranged);

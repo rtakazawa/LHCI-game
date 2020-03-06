@@ -22,8 +22,6 @@ public class Sword_1 : MonoBehaviour
         if (currentEulerAngles.z >= 240)
         {
             Destroy(this.gameObject);
-
-            Debug.Log("ZASCA!");
         }
     }
 

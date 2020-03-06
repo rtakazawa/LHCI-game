@@ -11,6 +11,27 @@ public class Player : MonoBehaviour
     [Range(0, 2)] [SerializeField] private float m_CrouchSpeed = .36f;  // Amount of maxSpeed applied to crouching movement. 1 = 100%
     [SerializeField] private bool m_AirControl = false;                 // Whether or not a player can steer while jumping;
     [SerializeField] private LayerMask m_WhatIsGround;                  // A mask determining what is ground to the character
+    [SerializeField] private LayerMask[] _whatIsInteractuable;            // 0 = NPC, 1 = Object
+
+    
+
+
+    private Companion _companion;
+
+    private Transform m_GroundCheck;    // A position marking where to check if the player is grounded.
+    const float k_GroundedRadius = .2f; // Radius of the overlap circle to determine if grounded
+    private bool m_Grounded;            // Whether or not the player is grounded.
+    private Transform m_CeilingCheck;   // A position marking where to check for ceilings
+    const float k_CeilingRadius = .01f; // Radius of the overlap circle to determine if the player can stand up
+    private Transform _interactionCheck;
+    [SerializeField] const float k_NPCinteractionRadius = 1f;
+    [SerializeField] const float k_WOinteractionRadius = 3f;
+    public bool _NPCinteraction;
+    public bool _WOinteraction;
+    private GameObject _detector;
+    private Animator m_Anim;            // Reference to the player's animator component.
+    private Rigidbody2D m_Rigidbody2D;
+    private bool m_FacingRight = true;  // For determining which way the player is currently facing.
 
     [SerializeField] private GameObject _MeleeWeapon;
     [SerializeField] private GameObject _RangedWeapon;
@@ -20,30 +41,22 @@ public class Player : MonoBehaviour
 
     [SerializeField] public float _MeleeCooldown = 2.0f;
     [SerializeField] public float _RangedCooldown = 1.5f;
-
+    [SerializeField] public float _InteractionCooldown = 3.0f;
 
     private bool _attack = false;
     private bool _aiming = false;
     private bool _cooldown = false;
+    private bool _interacting = false;
     private bool _mounted = false;
 
-    private Companion _companion;
-
-    private Transform m_GroundCheck;    // A position marking where to check if the player is grounded.
-    const float k_GroundedRadius = .2f; // Radius of the overlap circle to determine if grounded
-    private bool m_Grounded;            // Whether or not the player is grounded.
-    private Transform m_CeilingCheck;   // A position marking where to check for ceilings
-    const float k_CeilingRadius = .01f; // Radius of the overlap circle to determine if the player can stand up
-    private Animator m_Anim;            // Reference to the player's animator component.
-    private Rigidbody2D m_Rigidbody2D;
-    private bool m_FacingRight = true;  // For determining which way the player is currently facing.
 
 
     private void Awake()
     {
         // Setting up references.
-        m_GroundCheck = transform.Find("GroundCheck");
-        m_CeilingCheck = transform.Find("CeilingCheck");
+        _interactionCheck = transform.Find("Checkers/InteractionCheck");
+        m_GroundCheck = transform.Find("Checkers/GroundCheck");
+        m_CeilingCheck = transform.Find("Checkers/CeilingCheck");
         m_Anim = GetComponent<Animator>();
         m_Rigidbody2D = GetComponent<Rigidbody2D>();
 
@@ -53,12 +66,40 @@ public class Player : MonoBehaviour
             Debug.LogError("The Companion is NULL");
         }
 
+        _detector = GameObject.Find("Player/Checkers/Detector");
+        if (_detector == null)
+        {
+            Debug.LogError("The Detector is NULL");
+        }
+            
+
 
         
     }
 
     private void FixedUpdate()
     {
+
+
+        Collider[] NPCdetector = Physics.OverlapSphere(_interactionCheck.position, k_NPCinteractionRadius, _whatIsInteractuable[0]);
+        for (int i = 0; i < NPCdetector.Length; i++)
+        {
+            if (NPCdetector[i].gameObject != gameObject)
+            {
+                _NPCinteraction = true;
+            }
+        }
+
+        Collider[] WOdetector = Physics.OverlapSphere(_interactionCheck.position, k_WOinteractionRadius, _whatIsInteractuable[1]);
+        for (int i = 0; i < WOdetector.Length; i++)
+        {
+            if (WOdetector[i].gameObject != gameObject)
+            {
+                _WOinteraction = true;
+                Debug.Log("World Object detected");
+            }
+        }
+
         m_Grounded = false;
         // The player is grounded if a circlecast to the groundcheck position hits anything designated as ground
         // This can be done using layers instead but Sample Assets will not overwrite your project settings.
@@ -75,7 +116,7 @@ public class Player : MonoBehaviour
 
         m_Anim.SetBool("Mounted", _mounted);
 
-        if (Input.GetKey(KeyCode.F))
+        if (Input.GetKey(KeyCode.P))
         {
             Instantiate(_FunBall, transform.position, Quaternion.identity);
         }
@@ -129,6 +170,53 @@ public class Player : MonoBehaviour
             m_Rigidbody2D.AddForce(new Vector2(0f, m_JumpForce));
         }
     }
+
+    public void Karma()
+    {
+        
+    }
+
+    public void Interact(bool interact)
+    {
+        if (_NPCinteraction && interact)
+        {
+            _detector.SetActive(true);
+            _cooldown = true;
+            StartCoroutine(InteractCooldownRoutine());
+        }
+    }
+
+    IEnumerator InteractCooldownRoutine()
+    {
+        while (_cooldown)
+        {
+            yield return new WaitForSeconds(_InteractionCooldown);
+            _detector.SetActive(false);
+            _cooldown = false;
+        }
+    }
+
+    public void FriendlyInteraction()
+    {
+        _interacting = true;
+        StartCoroutine(FriendlyInteractionRoutine());
+    }
+
+    IEnumerator FriendlyInteractionRoutine()
+    {
+        while (_interacting)
+        {
+            yield return new WaitForSeconds(0.2f);
+            m_Anim.SetBool("HoodOff", true);
+
+            // *interaction event*
+
+            yield return new WaitForSeconds(2.0f);
+            m_Anim.SetBool("HoodOff", false);
+            _interacting = false;
+        }
+    }
+
 
     public void Attack(bool attack, bool aim, bool noAim)
     {
@@ -211,6 +299,15 @@ public class Player : MonoBehaviour
         }
     }
 
+    IEnumerator RangedCooldownCoroutine()
+    {
+        while (_cooldown)
+        {
+            yield return new WaitForSeconds(_RangedCooldown);
+            m_Anim.ResetTrigger("Attack");
+            _cooldown = false;
+        }
+    }
 
 
     public void Mount(bool mount, float m_h, bool m_ranged)
@@ -303,15 +400,7 @@ public class Player : MonoBehaviour
         }
     }
 
-    IEnumerator RangedCooldownCoroutine()
-    {
-        while (_cooldown)
-        {
-            yield return new WaitForSeconds(_RangedCooldown);
-            m_Anim.ResetTrigger("Attack");
-            _cooldown = false;
-        }
-    }
+
 
     private void Flip()
     {

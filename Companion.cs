@@ -10,20 +10,18 @@ public class Companion : MonoBehaviour
     [SerializeField] public float _runSpeed = 9.0f;
     [SerializeField] public float _runDistance = 10.0f;
 
-    private bool _invisible = false;
+    private bool _returning = false;
+    private bool _invisible;
     private float _distance;
     private Vector3 _heading;
     private Vector3 _direction;
 
-
-    
     private bool m_FacingRight = true;
     private Rigidbody2D _rigidbody2D;
 
     private Animator _anim;
     private Player _player;
 
-    Vector3 _upAxis = new Vector3(0f, 0f, 0f);
 
     // Start is called before the first frame update
     void Start()
@@ -112,13 +110,14 @@ public class Companion : MonoBehaviour
         // Move towards player
         else
         {
-            transform.position = Vector2.MoveTowards(transform.position, _target.transform.position, _walkSpeed * Time.deltaTime);
+            transform.position = Vector2.MoveTowards(_target.transform.position, _target.transform.position, _walkSpeed * Time.deltaTime);
             _anim.SetFloat("Speed", _walkSpeed);
         }
     }
 
     public void Unmount()
     {
+        _returning = true;
         StartCoroutine(UnmountRoutine());
     }
 
@@ -129,20 +128,24 @@ public class Companion : MonoBehaviour
         {    
             yield return new WaitForSeconds(0.3f);
             _invisible = true;
-            
-
         }
     }
 
     IEnumerator UnmountRoutine()
     {
         // Bring back game object
-        while (_invisible)
+        while (_returning)
         {
-            
-            yield return new WaitForSeconds(1.0f);
-            transform.position = new Vector3(_player.transform.position.x, _player.transform.position.y, 0);
             _invisible = false;
+            yield return new WaitForSeconds(1.0f);
+
+            // Calculate respawn position
+            var _posY = _player.transform.position.y;
+            var _sumY = _posY + 1.5f;
+            transform.position = new Vector3(_player.transform.position.x, _sumY, 0);
+            yield return new WaitForSeconds(0.3f);
+
+            _returning = false;
         }
     }
 
