@@ -4,34 +4,36 @@ using UnityEngine;
 
 public class Arrow_1 : MonoBehaviour
 {
-
-    [SerializeField] private float _forceX = 800.0f;
-    [SerializeField] private float _forceY = 30.0f;
     private bool _onScreen = true;
-    private bool _onFlight = true;
-    [SerializeField] public float _timeOnScreen = 10.0f;
+    [SerializeField] public float _timeOnScreen = 4.0f;
     private Rigidbody2D m_Rigidbody2D;
 
     private Quaternion _orto;
+    private Vector2 _mPos;
 
 
-    private void Awake()
+    private void Start()
     {
-        StartCoroutine(ArrowFlight());
         m_Rigidbody2D = GetComponent<Rigidbody2D>();
-        m_Rigidbody2D.AddForce(new Vector2(_forceX, _forceY));
-        
     }
 
     void Update()
     {
-        transform.rotation = _orto * Quaternion.Euler(0, 90f, 0);
-        _orto = Quaternion.LookRotation(m_Rigidbody2D.velocity);
-       
+        if (m_Rigidbody2D.velocity.x > 1f && m_Rigidbody2D.velocity.y > 1f)
+        {
+            transform.rotation = _orto * Quaternion.Euler(0, 90f, 0);
+            _orto = Quaternion.LookRotation(m_Rigidbody2D.velocity);
+        }
+
+        else;
+        {
+            StartCoroutine(ArrowTime());
+        }
+
     }
 
   
-    IEnumerator ArrowFlight()
+    IEnumerator ArrowTime()
     {
         while (_onScreen == true)
         {

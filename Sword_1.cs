@@ -4,25 +4,18 @@ using UnityEngine;
 
 public class Sword_1 : MonoBehaviour
 {
-    [SerializeField]
-    private float _speed = 50.0f;
-    
-    Vector3 currentEulerAngles;
 
     private void Awake()
     {
-        currentEulerAngles = new Vector3(0, 0, 0);
+        StartCoroutine(AliveRoutine());
     }
-    public void Update()
+
+    IEnumerator AliveRoutine()
     {
-        currentEulerAngles += new Vector3(0, 0, 2) * Time.deltaTime * _speed;
-        transform.eulerAngles = currentEulerAngles;
-
-
-        if (currentEulerAngles.z >= 240)
+        while (true)
         {
+            yield return new WaitForSeconds(1f);
             Destroy(this.gameObject);
         }
     }
-
 }

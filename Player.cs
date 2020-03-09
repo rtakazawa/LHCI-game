@@ -13,10 +13,12 @@ public class Player : MonoBehaviour
     [SerializeField] private LayerMask m_WhatIsGround;                  // A mask determining what is ground to the character
     [SerializeField] private LayerMask[] _whatIsInteractuable;            // 0 = NPC, 1 = Object
 
-    
 
 
+    private AudioManager _audioManager;
     private Companion _companion;
+    private GameObject _camera;
+    private float _cameraDistance = 60f;
 
     private Transform m_GroundCheck;    // A position marking where to check if the player is grounded.
     const float k_GroundedRadius = .2f; // Radius of the overlap circle to determine if grounded
@@ -35,7 +37,12 @@ public class Player : MonoBehaviour
 
     [SerializeField] private GameObject _MeleeWeapon;
     [SerializeField] private GameObject _RangedWeapon;
+    private Rigidbody2D _RangedWeaponRB;
+    [SerializeField] private float _rangedForce;
     [SerializeField] private GameObject _MountedRangedWeapon;
+    private Vector2 _target;
+    private Vector2 _exitPoint;
+    private Vector2 _direction;
 
     [SerializeField] private GameObject _FunBall;
 
@@ -49,6 +56,8 @@ public class Player : MonoBehaviour
     private bool _interacting = false;
     private bool _mounted = false;
 
+    
+
 
 
     private void Awake()
@@ -59,27 +68,40 @@ public class Player : MonoBehaviour
         m_CeilingCheck = transform.Find("Checkers/CeilingCheck");
         m_Anim = GetComponent<Animator>();
         m_Rigidbody2D = GetComponent<Rigidbody2D>();
+        _RangedWeaponRB = _RangedWeapon.GetComponent<Rigidbody2D>();
+
+        _audioManager = GameObject.Find("PlayerAudioManager").GetComponent<AudioManager>();
+        if (_audioManager == null)
+        {
+            Debug.LogError("PLAYER cannot communicate with the AUDIO MANAGER");
+        }
 
         _companion = GameObject.Find("Companion").GetComponent<Companion>();
         if (_companion == null)
         {
-            Debug.LogError("The Companion is NULL");
+            Debug.LogError("PLAYER cannot communicate with COMPANION");
         }
 
         _detector = GameObject.Find("Player/Checkers/Detector");
         if (_detector == null)
         {
-            Debug.LogError("The Detector is NULL");
+            Debug.LogError("PLAYER cannot find its DETECTOR");
         }
-            
 
+        _camera = GameObject.Find("Player/Main Camera");
+        if (_camera == null)
+        {
+            Debug.LogError("PLAYER cannot find its CAMERA");
+        }
 
         
+
+
     }
 
     private void FixedUpdate()
     {
-
+        CameraMovement();
 
         Collider[] NPCdetector = Physics.OverlapSphere(_interactionCheck.position, k_NPCinteractionRadius, _whatIsInteractuable[0]);
         for (int i = 0; i < NPCdetector.Length; i++)
@@ -120,6 +142,14 @@ public class Player : MonoBehaviour
         {
             Instantiate(_FunBall, transform.position, Quaternion.identity);
         }
+
+        
+        
+        _target = Camera.main.ScreenToWorldPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, _cameraDistance));
+        _exitPoint = new Vector3(transform.position.x, transform.position.y, 0);
+        _direction = _target - _exitPoint;
+        _direction.Normalize();
+        
     }
 
     public void Move(float move, bool crouch, bool jump)
@@ -142,7 +172,7 @@ public class Player : MonoBehaviour
         {
             // Reduce the speed if crouching by the crouchSpeed multiplier
             move = (crouch ? move*m_CrouchSpeed : move);
-
+            
             // The Speed animator parameter is set to the absolute value of the horizontal input.
             m_Anim.SetFloat("Speed", Mathf.Abs(move));
 
@@ -169,11 +199,6 @@ public class Player : MonoBehaviour
             m_Anim.SetBool("Ground", false);
             m_Rigidbody2D.AddForce(new Vector2(0f, m_JumpForce));
         }
-    }
-
-    public void Karma()
-    {
-        
     }
 
     public void Interact(bool interact)
@@ -258,6 +283,9 @@ public class Player : MonoBehaviour
 
             Debug.Log("Player is NOT aiming");
         }
+
+            
+
     }
 
     IEnumerator MeleeRoutine()
@@ -267,8 +295,23 @@ public class Player : MonoBehaviour
             _cooldown = true;
             StartCoroutine(CooldownCoroutine());
 
-            yield return new WaitForSeconds(0.5f);
+            yield return new WaitForSeconds(0.7f);
+            if (!m_FacingRight)
+            {
+                m_Rigidbody2D.AddForce(new Vector2(-600f, 300f));
+            }
+
+            if (m_FacingRight)
+            {
+                m_Rigidbody2D.AddForce(new Vector2(600f, 300f));
+            }
+
+            _audioManager.Play("Dash");
+
             Instantiate(_MeleeWeapon, transform.position, Quaternion.identity, gameObject.transform);
+
+            yield return new WaitForSeconds(0.3f);
+            _audioManager.Play("Sword");
 
             _attack = false;
         }
@@ -283,7 +326,10 @@ public class Player : MonoBehaviour
             StartCoroutine(RangedCooldownCoroutine());
 
             yield return new WaitForSeconds(0.4f);
-            Instantiate(_RangedWeapon, transform.position, Quaternion.identity);
+            Rigidbody2D Arrow = Instantiate(_RangedWeaponRB, _exitPoint, Quaternion.identity) as Rigidbody2D;
+            Arrow.velocity = new Vector2(_direction.x * _rangedForce, _direction.y * _rangedForce);
+
+            _audioManager.Play("Arrow");
 
             _attack = false;
         }
@@ -331,7 +377,6 @@ public class Player : MonoBehaviour
         if (_mounted)
         {
             m_Rigidbody2D.velocity = new Vector2(m_h * _mountedSpeed, m_Rigidbody2D.velocity.y);
-            
         }
 
         if (_mounted && m_ranged && !_cooldown && !_attack)
@@ -367,7 +412,6 @@ public class Player : MonoBehaviour
     {
         while (_mounted)
         {
-            
             m_Anim.SetTrigger("Unmounting");
             yield return new WaitForSeconds(0.4f);
             
@@ -395,11 +439,52 @@ public class Player : MonoBehaviour
             var _sumY = _posY + 1.7f;
             var _posXY = new Vector3(transform.position.x, _sumY);
             Instantiate(_MountedRangedWeapon, _posXY, Quaternion.identity);
+            _audioManager.Play("Arrow");
 
             _attack = false;
         }
     }
 
+    private void CameraMovement()
+    {
+        if (_aiming)
+        {
+            _cameraDistance = 70f;
+            var _camXr = transform.position.x + 8f;
+            var _camXl = transform.position.x - 8f;
+            var _camZ = transform.position.z - _cameraDistance;
+
+            if (m_FacingRight)
+            {
+                _camera.transform.position = Vector3.MoveTowards(_camera.transform.position, new Vector3(_camXr, _camera.transform.position.y, _camZ), 10f * Time.deltaTime);
+            }
+
+            if (!m_FacingRight)
+            {
+                _camera.transform.position = Vector3.MoveTowards(_camera.transform.position, new Vector3(_camXl, _camera.transform.position.y, _camZ), 10f * Time.deltaTime);
+            }
+        }
+
+        if (!_aiming && !_mounted)
+        {
+            _cameraDistance = 60f;
+            var _camY = transform.position.y + 2.5f;
+            var _camZ = transform.position.z - _cameraDistance;
+            _camera.transform.position = Vector3.MoveTowards(_camera.transform.position, new Vector3(transform.position.x, _camY, _camZ), 10f * Time.deltaTime);
+        }
+
+        if (_mounted)
+        {
+            _cameraDistance = 90f;
+            var _camY = transform.position.y + 6f;
+            var _camZ = transform.position.z - _cameraDistance;
+
+            _camera.transform.position = Vector3.MoveTowards(_camera.transform.position, new Vector3(transform.position.x, _camY, _camZ), 10f * Time.deltaTime);
+        }
+
+
+
+    }
 
 
     private void Flip()

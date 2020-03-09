@@ -23,4 +23,5 @@ public class Karma : MonoBehaviour
         _rhino = _attribute1 - _attribute2;
         _panther = _attribute3 - _attribute2;
     }
+
 }

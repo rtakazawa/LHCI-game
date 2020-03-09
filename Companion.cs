@@ -16,6 +16,7 @@ public class Companion : MonoBehaviour
     private Vector3 _heading;
     private Vector3 _direction;
 
+    private bool _catchingUp = false;
     private bool m_FacingRight = true;
     private Rigidbody2D _rigidbody2D;
 
@@ -63,25 +64,29 @@ public class Companion : MonoBehaviour
     {
         
         // Walk towards player
-        if (_distance > _walkDistance && _distance < _runDistance)
+        if (_distance > _walkDistance && _distance < _runDistance && !_catchingUp)
         {
             transform.position = Vector2.MoveTowards(transform.position, _target.transform.position, _walkSpeed * Time.deltaTime);
             
             _anim.SetFloat("Speed", _walkSpeed);
-         
         }
         
         // Run towards player
-        else if (_distance > _runDistance)
+        if (_distance >= _runDistance && !_catchingUp)
         {
-            transform.position = Vector2.MoveTowards(transform.position, _target.transform.position, _runSpeed * Time.deltaTime);
+            _catchingUp = true;   
+        }
+
+        if (_catchingUp)
+        {
             _anim.SetFloat("Speed", _runSpeed);
+            transform.position = Vector2.MoveTowards(transform.position, _target.transform.position, _runSpeed * Time.deltaTime);
         }
 
         // Idle if near player
-        else if(_distance <= _walkDistance)
+        if(_distance <= _walkDistance)
         {
-
+            _catchingUp = false;
             _anim.SetFloat("Speed", 0);
         }
 
@@ -136,14 +141,15 @@ public class Companion : MonoBehaviour
         // Bring back game object
         while (_returning)
         {
+            yield return new WaitForSeconds(0.8f);
             _invisible = false;
-            yield return new WaitForSeconds(1.0f);
+            
 
             // Calculate respawn position
             var _posY = _player.transform.position.y;
-            var _sumY = _posY + 1.5f;
+            var _sumY = _posY + 1.0f;
             transform.position = new Vector3(_player.transform.position.x, _sumY, 0);
-            yield return new WaitForSeconds(0.3f);
+            
 
             _returning = false;
         }

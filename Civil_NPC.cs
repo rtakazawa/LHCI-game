@@ -60,7 +60,7 @@ public class Civil_NPC : MonoBehaviour
                 _interactionID = _value2;
                 break;
         }
-
+        Debug.Log("Civil_NPC interaction ID value is: " + _interactionID);
     }
 
 
